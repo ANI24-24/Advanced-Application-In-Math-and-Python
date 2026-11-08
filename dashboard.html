@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weather Station Results</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EAF0EB; --sheet:#F5F8F4; --grid:#CFE2DB; --grid-major:#94C1B4;
+  --ink:#1D2A31; --muted:#56686D; --trace:#5B2A86; --trace-soft:rgba(91,42,134,.15);
+  --alert:#C21E56; --pos:#21806F;
+  --sunny:#D49A12; --cloudy:#8696A0; --rainy:#3A6EA5;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#111A1A; --sheet:#162221; --grid:#1F3833; --grid-major:#2E5A51;
+    --ink:#E2ECE8; --muted:#93A7A2; --trace:#C0A4EC; --trace-soft:rgba(192,164,236,.17);
+    --alert:#FF6F93; --pos:#5CC6B4;
+    --sunny:#E8B743; --cloudy:#9AAAB3; --rainy:#6E9FD6;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#111A1A; --sheet:#162221; --grid:#1F3833; --grid-major:#2E5A51;
+  --ink:#E2ECE8; --muted:#93A7A2; --trace:#C0A4EC; --trace-soft:rgba(192,164,236,.17);
+  --alert:#FF6F93; --pos:#5CC6B4;
+  --sunny:#E8B743; --cloudy:#9AAAB3; --rainy:#6E9FD6;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:"Bricolage Grotesque",system-ui,sans-serif;
+  font-optical-sizing:auto; font-size:17px; line-height:1.55;
+  font-variant-numeric:tabular-nums;
+}
+.wrap{max-width:1240px; margin:0 auto; padding:0 16px}
+@media (min-width:720px){ .wrap{padding:0 40px} }
+a{color:var(--trace)}
+button{font:inherit; color:inherit}
+:focus-visible{outline:2px solid var(--trace); outline-offset:3px}
+
+/* masthead */
+.mast{display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px 24px;
+  padding:22px 0 0; color:var(--muted); font-size:15px}
+.mast strong{color:var(--ink); font-weight:600}
+
+/* hero */
+.hero{padding:44px 0 0}
+h1{
+  font-size:clamp(2.6rem,7.4vw,6.2rem); font-stretch:75%; font-weight:760;
+  line-height:.92; letter-spacing:-.025em; margin:0; max-width:13ch;
+}
+.lede{max-width:60ch; margin:20px 0 28px; font-size:1.12rem; color:var(--muted)}
+.lede b{color:var(--ink); font-weight:600}
+
+.drum{
+  position:relative; background:var(--sheet);
+  border-top:3px solid var(--grid-major); border-bottom:3px solid var(--grid-major);
+  padding:14px 0 6px;
+}
+.drum svg{display:block; width:100%; height:auto; touch-action:pan-y}
+.drum svg:focus-visible{outline-offset:-2px}
+.pens{display:flex; flex-wrap:wrap; gap:8px; margin:0 0 14px}
+.pen{
+  display:inline-flex; align-items:center; gap:8px; cursor:pointer;
+  border:1px solid var(--grid-major); background:transparent; border-radius:999px;
+  padding:5px 13px 5px 10px; font-size:14.5px; user-select:none;
+}
+.pen input{position:absolute; opacity:0; pointer-events:none}
+.pen .sw{width:18px; height:0; border-top:2.5px solid currentColor}
+.pen .sw.dot{width:9px; height:9px; border:0; border-radius:50%; background:currentColor}
+.pen .sw.fill{height:10px; border:0; background:var(--trace-soft); border-top:2px solid var(--trace)}
+.pen .sw.dash{border-top-style:dashed}
+.pen:has(input:not(:checked)){opacity:.45}
+.pen:has(input:not(:checked)) .sw{filter:grayscale(1)}
+.pen:has(input:focus-visible){outline:2px solid var(--trace); outline-offset:2px}
+
+.readout{
+  position:absolute; top:10px; pointer-events:none; background:var(--paper);
+  border:1px solid var(--grid-major); border-radius:4px; padding:8px 12px; font-size:14px;
+  line-height:1.4; min-width:168px; opacity:0; transition:opacity .12s;
+}
+.readout.on{opacity:1}
+.readout .d{font-weight:650}
+.readout .v{font-size:1.5rem; font-weight:700; font-stretch:80%; color:var(--trace)}
+.readout .v.out{color:var(--alert)}
+.readout .m{color:var(--muted)}
+.hint{font-size:14px; color:var(--muted); margin:10px 0 0}
+
+.figures{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+  margin:30px 0 0; border-top:1px solid var(--grid-major);
+}
+.figures div{padding:14px 18px 16px 0}
+.figures dt{font-size:14.5px; color:var(--muted)}
+.figures dd{margin:2px 0 0; font-size:1.9rem; font-weight:680; font-stretch:80%; line-height:1.1}
+.figures dd small{font-size:.95rem; font-weight:450; color:var(--muted); font-stretch:100%}
+.figures .alert dd{color:var(--alert)}
+.note{max-width:66ch; color:var(--muted); margin:6px 0 0}
+
+/* sections */
+section.part{padding:88px 0 0}
+.part-head{display:grid; grid-template-columns:auto 1fr; gap:4px 22px; align-items:baseline; margin-bottom:26px}
+.part-no{font-size:clamp(2.6rem,5vw,4rem); font-weight:250; color:var(--trace); line-height:1; font-stretch:75%}
+h2{font-size:clamp(1.6rem,3.2vw,2.4rem); font-stretch:82%; font-weight:700; line-height:1.05; margin:0; letter-spacing:-.01em}
+.part-head p{grid-column:2; margin:6px 0 0; max-width:62ch; color:var(--muted)}
+@media (max-width:560px){ .part-head{grid-template-columns:1fr} .part-head p{grid-column:1} }
+h3{font-size:1.15rem; font-weight:650; margin:0 0 4px}
+.sub{color:var(--muted); font-size:15px; margin:0 0 14px; max-width:58ch}
+
+.cols{display:grid; gap:28px 48px; grid-template-columns:minmax(0,1fr)}
+@media (min-width:900px){
+  .cols.c-11{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}
+  .cols.c-12{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr)}
+}
+.panel{background:var(--sheet); border:1px solid var(--grid); border-radius:6px; padding:20px}
+@media (max-width:560px){ .panel{padding:16px 12px} }
+
+.seg{display:inline-flex; border:1px solid var(--grid-major); border-radius:6px; overflow:hidden; margin-bottom:14px}
+.seg button{background:transparent; border:0; padding:6px 14px; cursor:pointer; font-size:14.5px}
+.seg button+button{border-left:1px solid var(--grid-major)}
+.seg button[aria-pressed="true"]{background:var(--trace); color:var(--sheet)}
+
+.heat svg{width:100%; max-width:470px; height:auto; display:block}
+.formula{font-size:1.15rem; padding:14px 0; border-top:1px solid var(--grid); border-bottom:1px solid var(--grid); margin:0 0 18px}
+.formula i{font-style:italic}
+.frac{display:inline-flex; flex-direction:column; vertical-align:middle; text-align:center; font-size:.85em; margin:0 4px}
+.frac span:first-child{border-bottom:1px solid currentColor; padding:0 3px}
+.check{display:flex; gap:12px; align-items:flex-start; margin:0 0 18px}
+.check .tick{flex:none; width:26px; height:26px; border-radius:50%; background:var(--pos); color:var(--sheet);
+  display:grid; place-items:center; font-weight:700; font-size:15px; margin-top:2px}
+table{border-collapse:collapse; width:100%; font-size:14.5px}
+th,td{padding:6px 8px; text-align:right; border-bottom:1px solid var(--grid)}
+th{font-weight:600; color:var(--muted)}
+th:first-child,td:first-child{text-align:left}
+.scroll{overflow-x:auto}
+
+/* markov */
+.matrix{display:grid; grid-template-columns:auto repeat(3,minmax(0,1fr)); gap:6px 10px; align-items:center; font-size:14.5px}
+.matrix .h{color:var(--muted); font-size:13.5px}
+.matrix .cell{position:relative; height:30px; border-radius:3px; background:var(--paper); overflow:hidden}
+.matrix .cell i{position:absolute; inset:0 auto 0 0; display:block}
+.matrix .cell span{position:relative; padding-left:8px; line-height:30px; font-weight:600}
+.matrix .rowlab{font-weight:600; white-space:nowrap}
+.dot{display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; vertical-align:baseline}
+
+.strip{display:grid; grid-template-columns:repeat(17,minmax(0,1fr)); gap:3px; margin:4px 0 12px}
+.strip span{aspect-ratio:1; border-radius:2px; display:grid; place-items:center; font-size:11.5px; font-weight:650; color:#fff}
+.strip span.first{outline:2px solid var(--ink); outline-offset:1px}
+.counts{display:flex; flex-wrap:wrap; gap:6px 22px; font-size:15px; margin-bottom:12px}
+.counts b{font-weight:680}
+.btnrow{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+.btn{border:1px solid var(--trace); background:transparent; color:var(--trace); border-radius:6px; padding:7px 14px; cursor:pointer; font-size:14.5px; font-weight:600}
+.btn.solid{background:var(--trace); color:var(--sheet)}
+.btn[hidden]{display:none}
+.runlabel{font-size:14px; color:var(--muted)}
+
+.conv svg{width:100%; height:auto; display:block}
+.legend{display:flex; flex-wrap:wrap; gap:4px 18px; font-size:14px; color:var(--muted); margin:8px 0 0}
+.legend span{display:inline-flex; align-items:center; gap:6px}
+.legend .ln{width:18px; border-top:2px solid; display:inline-block}
+.legend .ln.dash{border-top-style:dashed}
+
+.compare{display:grid; gap:14px}
+.compare .row{display:grid; grid-template-columns:86px 1fr; gap:10px; align-items:center}
+.compare .bars{display:grid; gap:3px}
+.compare .bar{display:flex; align-items:center; gap:8px; font-size:13.5px}
+.compare .bar i{display:block; height:12px; border-radius:2px}
+.compare .bar em{font-style:normal; color:var(--muted)}
+.eig{margin:18px 0 0; padding-top:14px; border-top:1px solid var(--grid); font-size:15px}
+.eig b{font-weight:650}
+
+/* nan grid */
+.nan{display:grid; grid-template-columns:118px 1fr; gap:8px 12px; align-items:center}
+.nan .lab{font-size:14px; font-weight:600}
+.nan .lab small{display:block; font-weight:400; color:var(--muted)}
+.cells{display:grid; grid-template-columns:repeat(35,minmax(0,1fr)); gap:2px}
+.cells span{height:22px; border-radius:2px; background:var(--grid-major); transition:background .3s, border-color .3s}
+.cells span.na{background:transparent; border:1.5px dashed var(--alert)}
+.cells span.fill{background:repeating-linear-gradient(135deg,var(--trace) 0 3px,transparent 3px 6px); border:1.5px solid var(--trace)}
+.axis{display:grid; grid-template-columns:repeat(35,minmax(0,1fr)); gap:2px; font-size:11.5px; color:var(--muted)}
+.axis span{text-align:center}
+@media (max-width:560px){ .nan{grid-template-columns:1fr} .cells span{height:16px} }
+.rules{margin:22px 0 0; padding:0; list-style:none; display:grid; gap:14px}
+@media (min-width:900px){ .rules{grid-template-columns:repeat(3,1fr)} }
+.rules li{border-left:3px solid var(--grid-major); padding:2px 0 2px 14px; font-size:15.5px}
+.rules li b{display:block; font-weight:650; margin-bottom:2px}
+.nancount{display:flex; flex-wrap:wrap; gap:6px 28px; font-size:15px; margin:0 0 16px}
+.nancount b{font-weight:700}
+
+footer{margin:110px 0 0; padding:22px 0 40px; border-top:1px solid var(--grid-major); color:var(--muted); font-size:14.5px;
+  display:flex; flex-wrap:wrap; gap:8px 28px; justify-content:space-between}
+
+/* svg text */
+svg text{font-family:"Bricolage Grotesque",system-ui,sans-serif; fill:var(--muted)}
+
+@media (prefers-reduced-motion: reduce){ *{transition:none!important; animation:none!important} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <span><strong>Assignment 4</strong>, advanced applications in math and Python</span>
+    <span>G Anirudh</span>
+  </header>
+
+  <section class="hero" aria-labelledby="hero-title">
+    <h1 id="hero-title">One year of daily temperature</h1>
+    <p class="lede" id="lede"></p>
+
+    <div class="pens" role="group" aria-label="Chart layers">
+      <label class="pen" style="color:var(--trace)"><input type="checkbox" data-layer="raw" checked><span class="sw"></span>Daily reading</label>
+      <label class="pen" style="color:var(--ink)"><input type="checkbox" data-layer="roll" checked><span class="sw"></span>7-day rolling mean</label>
+      <label class="pen"><input type="checkbox" data-layer="band" checked><span class="sw fill"></span>Mean ± expanding σ</label>
+      <label class="pen" style="color:var(--alert)"><input type="checkbox" data-layer="limits" checked><span class="sw dash"></span>Mean ± 2σ</label>
+      <label class="pen" style="color:var(--alert)"><input type="checkbox" data-layer="out" checked><span class="sw dot"></span>Outside 2σ</label>
+    </div>
+
+    <div class="drum" id="drum">
+      <svg id="thermo" viewBox="0 0 1200 440" role="img" tabindex="0"
+           aria-label="Daily temperature for 2025. Use left and right arrow keys to read individual days."></svg>
+      <div class="readout" id="readout" aria-live="polite"></div>
+    </div>
+    <p class="hint">Hover or drag across the chart to read any day. When the chart has focus, the arrow keys step one day and Shift + arrow steps a week.</p>
+
+    <dl class="figures" id="figures"></dl>
+    <p class="note" id="ts-note"></p>
+  </section>
+
+  <!-- 1.1 -->
+  <section class="part" aria-labelledby="p11">
+    <div class="part-head">
+      <span class="part-no">1.1</span>
+      <h2 id="p11">Covariance and correlation</h2>
+      <p>Three simulated sensor channels with 100 readings each. The covariance matrix is computed by matrix multiplication and then checked against NumPy.</p>
+    </div>
+    <div class="cols c-11">
+      <div class="panel heat">
+        <div class="seg" role="group" aria-label="Matrix">
+          <button type="button" aria-pressed="true" data-m="corr">Correlation</button>
+          <button type="button" aria-pressed="false" data-m="cov">Covariance</button>
+        </div>
+        <svg id="heat" viewBox="0 0 470 400" role="img" aria-label="3 by 3 matrix heat map"></svg>
+        <p class="sub" id="heat-cap" style="margin:10px 0 0"></p>
+      </div>
+      <div>
+        <div class="formula">
+          <i>C</i> = <span class="frac"><span>1</span><span><i>n</i> − 1</span></span>
+          (<i>X</i> − <i>X̄</i>)(<i>X</i> − <i>X̄</i>)<sup>T</sup>
+          <span style="color:var(--muted);font-size:.85em">&nbsp;&nbsp;with <i>X</i> of shape 3 × 100</span>
+        </div>
+        <div class="check">
+          <span class="tick" aria-hidden="true">✓</span>
+          <div id="cov-check"></div>
+        </div>
+        <h3>Strongest relationship</h3>
+        <p class="sub" id="cov-insight" style="margin-bottom:22px"></p>
+        <h3>First six readings</h3>
+        <div class="scroll"><table id="sample"></table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 1.2 -->
+  <section class="part" aria-labelledby="p12">
+    <div class="part-head">
+      <span class="part-no">1.2</span>
+      <h2 id="p12">Markov chain weather model</h2>
+      <p>Tomorrow's weather depends only on today's. The model runs 50 days from a sunny start, and the steady state comes from the eigenvector of P<sup>T</sup> with eigenvalue 1.</p>
+    </div>
+
+    <div class="cols c-12">
+      <div class="panel">
+        <h3>Transition matrix P</h3>
+        <p class="sub">Each row is today's weather; each bar is the chance of tomorrow's.</p>
+        <div class="matrix" id="matrix"></div>
+      </div>
+      <div class="panel">
+        <h3>50 days starting from Sunny</h3>
+        <p class="sub">Day 0 is outlined. Run the chain again to see how much a 50-day sample varies.</p>
+        <div class="strip" id="strip" aria-label="Simulated weather sequence"></div>
+        <div class="counts" id="counts"></div>
+        <div class="btnrow">
+          <button class="btn solid" id="resim" type="button">Run another 50 days</button>
+          <button class="btn" id="reset" type="button" hidden>Show the notebook run</button>
+          <span class="runlabel" id="runlabel">Notebook run, seed 42</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="cols c-12" style="margin-top:28px">
+      <div class="panel conv">
+        <h3>Convergence to the steady state</h3>
+        <p class="sub">Probability of each state on day <i>k</i>, starting from a certain Sunny day. Dashed lines mark π.</p>
+        <svg id="conv" viewBox="0 0 560 270" role="img" aria-label="Probability of each weather state over 15 days"></svg>
+        <div class="legend" id="conv-legend"></div>
+      </div>
+      <div class="panel">
+        <h3>Three estimates of π</h3>
+        <p class="sub">The 50-day sample, a 100,000-step simulation and the eigenvector solution.</p>
+        <div class="compare" id="compare"></div>
+        <div class="eig" id="eig"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2.1 -->
+  <section class="part" aria-labelledby="p21">
+    <div class="part-head">
+      <span class="part-no">2.1</span>
+      <h2 id="p21">Windowing and missing values</h2>
+      <p>The 7-day rolling mean and the 30-day minimum expanding σ leave gaps at the start of the year. Each column is filled by its own rule instead of dropping a month of data.</p>
+    </div>
+    <div class="panel">
+      <div class="seg" role="group" aria-label="Stage">
+        <button type="button" aria-pressed="true" data-s="before">Before filling</button>
+        <button type="button" aria-pressed="false" data-s="after">After filling</button>
+      </div>
+      <div class="nancount" id="nancount"></div>
+      <div class="nan" id="nan"></div>
+      <div class="legend" style="margin-top:14px">
+        <span><i style="width:14px;height:14px;background:var(--grid-major);border-radius:2px;display:inline-block"></i>Computed value</span>
+        <span><i style="width:14px;height:14px;border:1.5px dashed var(--alert);border-radius:2px;display:inline-block"></i>NaN</span>
+        <span><i style="width:14px;height:14px;border:1.5px solid var(--trace);background:repeating-linear-gradient(135deg,var(--trace) 0 3px,transparent 3px 6px);border-radius:2px;display:inline-block"></i>Filled</span>
+      </div>
+      <ul class="rules">
+        <li><b>Rolling mean, days 1–6</b>Filled with the mean of the days available so far, the same calculation on a shorter window.</li>
+        <li><b>Expanding σ, days 1–29</b>Back-filled with the first valid value on day 30, since σ is unstable on so few points.</li>
+        <li><b>Nothing hidden</b>An <code>is_filled</code> column flags all 29 filled rows, so they can be told apart later.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <span>Built from <code>results.json</code>, written by Assignment4_Advanced_Math_Python.py</span>
+    <span>NumPy, pandas and Matplotlib; drawn here in plain SVG</span>
+  </footer>
+</div>
+
+<script>
+const DATA = {"cov": {"names": ["Temperature", "Humidity", "Pressure"], "means": [30.132, 65.064, 1007.887], "manual": [[3.1135, -4.6602, -0.5254], [-4.6602, 23.1032, -0.2251], [-0.5254, -0.2251, 2.39]], "numpy": [[3.1135, -4.6602, -0.5254], [-4.6602, 23.1032, -0.2251], [-0.5254, -0.2251, 2.39]], "max_diff": 1.1102230246251565e-16, "corr": [[1.0, -0.5495, -0.1926], [-0.5495, 1.0, -0.0303], [-0.1926, -0.0303, 1.0]], "sample": [[28.28, 30.34, 32.95, 29.73, 29.38, 31.45, 32.95, 32.21], [73.63, 67.38, 65.96, 68.24, 67.59, 57.54, 67.35, 66.31], [1008.2, 1007.07, 1006.29, 1007.26, 1007.68, 1008.17, 1007.27, 1009.16]]}, "markov": {"states": ["Sunny", "Cloudy", "Rainy"], "P": [[0.7, 0.2, 0.1], [0.3, 0.4, 0.3], [0.2, 0.3, 0.5]], "path": [0, 1, 1, 2, 2, 0, 2, 2, 2, 0, 0, 0, 2, 2, 2, 1, 0, 0, 0, 1, 1, 2, 1, 2, 2, 2, 0, 0, 0, 0, 0, 1, 2, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 2, 1, 2, 2, 1, 0, 0, 0], "counts": [21, 13, 16], "eigvals": [1.0, 0.4732, 0.1268], "eigvec_raw": [-0.7648, -0.4734, -0.437], "pi": [0.4565, 0.2826, 0.2609], "long_freq": [0.4561, 0.2816, 0.2623], "dist": [[1.0, 0.0, 0.0], [0.7, 0.2, 0.1], [0.57, 0.25, 0.18], [0.51, 0.268, 0.222], [0.4818, 0.2758, 0.2424], [0.4685, 0.2794, 0.2521], [0.4622, 0.2811, 0.2567], [0.4592, 0.2819, 0.2589], [0.4578, 0.2823, 0.2599], [0.4571, 0.2824, 0.2604], [0.4568, 0.2825, 0.2607], [0.4567, 0.2826, 0.2608], [0.4566, 0.2826, 0.2608], [0.4566, 0.2826, 0.2608], [0.4565, 0.2826, 0.2609], [0.4565, 0.2826, 0.2609]]}, "ts": {"dates": ["2025-01-01", "2025-01-02", "2025-01-03", "2025-01-04", "2025-01-05", "2025-01-06", "2025-01-07", "2025-01-08", "2025-01-09", "2025-01-10", "2025-01-11", "2025-01-12", "2025-01-13", "2025-01-14", "2025-01-15", "2025-01-16", "2025-01-17", "2025-01-18", "2025-01-19", "2025-01-20", "2025-01-21", "2025-01-22", "2025-01-23", "2025-01-24", "2025-01-25", "2025-01-26", "2025-01-27", "2025-01-28", "2025-01-29", "2025-01-30", "2025-01-31", "2025-02-01", "2025-02-02", "2025-02-03", "2025-02-04", "2025-02-05", "2025-02-06", "2025-02-07", "2025-02-08", "2025-02-09", "2025-02-10", "2025-02-11", "2025-02-12", "2025-02-13", "2025-02-14", "2025-02-15", "2025-02-16", "2025-02-17", "2025-02-18", "2025-02-19", "2025-02-20", "2025-02-21", "2025-02-22", "2025-02-23", "2025-02-24", "2025-02-25", "2025-02-26", "2025-02-27", "2025-02-28", "2025-03-01", "2025-03-02", "2025-03-03", "2025-03-04", "2025-03-05", "2025-03-06", "2025-03-07", "2025-03-08", "2025-03-09", "2025-03-10", "2025-03-11", "2025-03-12", "2025-03-13", "2025-03-14", "2025-03-15", "2025-03-16", "2025-03-17", "2025-03-18", "2025-03-19", "2025-03-20", "2025-03-21", "2025-03-22", "2025-03-23", "2025-03-24", "2025-03-25", "2025-03-26", "2025-03-27", "2025-03-28", "2025-03-29", "2025-03-30", "2025-03-31", "2025-04-01", "2025-04-02", "2025-04-03", "2025-04-04", "2025-04-05", "2025-04-06", "2025-04-07", "2025-04-08", "2025-04-09", "2025-04-10", "2025-04-11", "2025-04-12", "2025-04-13", "2025-04-14", "2025-04-15", "2025-04-16", "2025-04-17", "2025-04-18", "2025-04-19", "2025-04-20", "2025-04-21", "2025-04-22", "2025-04-23", "2025-04-24", "2025-04-25", "2025-04-26", "2025-04-27", "2025-04-28", "2025-04-29", "2025-04-30", "2025-05-01", "2025-05-02", "2025-05-03", "2025-05-04", "2025-05-05", "2025-05-06", "2025-05-07", "2025-05-08", "2025-05-09", "2025-05-10", "2025-05-11", "2025-05-12", "2025-05-13", "2025-05-14", "2025-05-15", "2025-05-16", "2025-05-17", "2025-05-18", "2025-05-19", "2025-05-20", "2025-05-21", "2025-05-22", "2025-05-23", "2025-05-24", "2025-05-25", "2025-05-26", "2025-05-27", "2025-05-28", "2025-05-29", "2025-05-30", "2025-05-31", "2025-06-01", "2025-06-02", "2025-06-03", "2025-06-04", "2025-06-05", "2025-06-06", "2025-06-07", "2025-06-08", "2025-06-09", "2025-06-10", "2025-06-11", "2025-06-12", "2025-06-13", "2025-06-14", "2025-06-15", "2025-06-16", "2025-06-17", "2025-06-18", "2025-06-19", "2025-06-20", "2025-06-21", "2025-06-22", "2025-06-23", "2025-06-24", "2025-06-25", "2025-06-26", "2025-06-27", "2025-06-28", "2025-06-29", "2025-06-30", "2025-07-01", "2025-07-02", "2025-07-03", "2025-07-04", "2025-07-05", "2025-07-06", "2025-07-07", "2025-07-08", "2025-07-09", "2025-07-10", "2025-07-11", "2025-07-12", "2025-07-13", "2025-07-14", "2025-07-15", "2025-07-16", "2025-07-17", "2025-07-18", "2025-07-19", "2025-07-20", "2025-07-21", "2025-07-22", "2025-07-23", "2025-07-24", "2025-07-25", "2025-07-26", "2025-07-27", "2025-07-28", "2025-07-29", "2025-07-30", "2025-07-31", "2025-08-01", "2025-08-02", "2025-08-03", "2025-08-04", "2025-08-05", "2025-08-06", "2025-08-07", "2025-08-08", "2025-08-09", "2025-08-10", "2025-08-11", "2025-08-12", "2025-08-13", "2025-08-14", "2025-08-15", "2025-08-16", "2025-08-17", "2025-08-18", "2025-08-19", "2025-08-20", "2025-08-21", "2025-08-22", "2025-08-23", "2025-08-24", "2025-08-25", "2025-08-26", "2025-08-27", "2025-08-28", "2025-08-29", "2025-08-30", "2025-08-31", "2025-09-01", "2025-09-02", "2025-09-03", "2025-09-04", "2025-09-05", "2025-09-06", "2025-09-07", "2025-09-08", "2025-09-09", "2025-09-10", "2025-09-11", "2025-09-12", "2025-09-13", "2025-09-14", "2025-09-15", "2025-09-16", "2025-09-17", "2025-09-18", "2025-09-19", "2025-09-20", "2025-09-21", "2025-09-22", "2025-09-23", "2025-09-24", "2025-09-25", "2025-09-26", "2025-09-27", "2025-09-28", "2025-09-29", "2025-09-30", "2025-10-01", "2025-10-02", "2025-10-03", "2025-10-04", "2025-10-05", "2025-10-06", "2025-10-07", "2025-10-08", "2025-10-09", "2025-10-10", "2025-10-11", "2025-10-12", "2025-10-13", "2025-10-14", "2025-10-15", "2025-10-16", "2025-10-17", "2025-10-18", "2025-10-19", "2025-10-20", "2025-10-21", "2025-10-22", "2025-10-23", "2025-10-24", "2025-10-25", "2025-10-26", "2025-10-27", "2025-10-28", "2025-10-29", "2025-10-30", "2025-10-31", "2025-11-01", "2025-11-02", "2025-11-03", "2025-11-04", "2025-11-05", "2025-11-06", "2025-11-07", "2025-11-08", "2025-11-09", "2025-11-10", "2025-11-11", "2025-11-12", "2025-11-13", "2025-11-14", "2025-11-15", "2025-11-16", "2025-11-17", "2025-11-18", "2025-11-19", "2025-11-20", "2025-11-21", "2025-11-22", "2025-11-23", "2025-11-24", "2025-11-25", "2025-11-26", "2025-11-27", "2025-11-28", "2025-11-29", "2025-11-30", "2025-12-01", "2025-12-02", "2025-12-03", "2025-12-04", "2025-12-05", "2025-12-06", "2025-12-07", "2025-12-08", "2025-12-09", "2025-12-10", "2025-12-11", "2025-12-12", "2025-12-13", "2025-12-14", "2025-12-15", "2025-12-16", "2025-12-17", "2025-12-18", "2025-12-19", "2025-12-20", "2025-12-21", "2025-12-22", "2025-12-23", "2025-12-24", "2025-12-25", "2025-12-26", "2025-12-27", "2025-12-28", "2025-12-29", "2025-12-30", "2025-12-31"], "value": [25.05, 24.36, 22.39, 25.0, 25.96, 24.47, 24.6, 26.67, 23.0, 22.67, 23.88, 23.15, 26.74, 25.32, 23.71, 24.09, 28.99, 24.17, 23.99, 25.52, 26.03, 25.49, 23.95, 23.64, 26.14, 25.27, 23.1, 27.08, 26.57, 25.2, 25.22, 25.96, 24.73, 23.86, 26.25, 23.84, 26.46, 23.95, 25.88, 25.89, 28.64, 24.71, 24.28, 20.66, 24.81, 25.62, 27.1, 27.66, 28.97, 25.68, 30.47, 29.62, 26.63, 23.77, 26.94, 27.22, 23.97, 27.37, 27.06, 26.31, 28.36, 28.96, 26.95, 28.02, 26.86, 26.75, 28.04, 28.73, 27.29, 25.05, 29.05, 26.07, 28.55, 30.95, 28.51, 26.95, 26.64, 30.41, 28.82, 29.68, 30.3, 29.01, 28.72, 27.91, 24.99, 27.26, 29.37, 29.3, 30.18, 29.52, 29.99, 30.95, 28.68, 29.6, 27.82, 31.51, 30.28, 30.98, 32.53, 31.96, 30.43, 31.69, 28.66, 31.34, 31.0, 28.61, 32.82, 30.03, 32.04, 30.57, 32.61, 33.13, 30.19, 29.28, 31.3, 32.74, 26.99, 30.82, 32.42, 27.93, 30.93, 29.98, 32.39, 31.0, 30.53, 31.65, 30.15, 32.24, 31.35, 31.83, 31.41, 33.74, 32.36, 33.29, 33.28, 31.52, 33.49, 33.23, 33.22, 32.27, 32.27, 34.0, 36.0, 31.82, 33.76, 32.54, 34.18, 33.73, 34.63, 29.26, 32.36, 31.85, 33.1, 32.27, 32.41, 34.28, 36.01, 29.41, 32.95, 33.84, 33.42, 32.95, 31.55, 32.13, 34.48, 34.98, 33.62, 32.32, 33.63, 33.16, 34.26, 33.67, 32.63, 33.76, 31.84, 34.64, 35.14, 31.83, 34.06, 32.07, 34.95, 34.7, 33.1, 34.8, 32.79, 32.47, 32.56, 33.14, 32.86, 33.51, 32.41, 34.31, 34.65, 32.49, 31.16, 34.14, 34.69, 32.84, 35.9, 33.37, 35.09, 30.3, 33.55, 32.41, 31.61, 33.46, 36.42, 33.09, 34.47, 32.83, 31.31, 30.0, 30.64, 29.81, 34.57, 31.93, 30.77, 30.36, 30.63, 31.59, 30.21, 34.3, 30.84, 30.73, 32.2, 33.74, 28.1, 30.9, 31.88, 31.66, 32.13, 31.68, 29.93, 29.42, 31.37, 29.39, 32.89, 30.97, 29.41, 30.32, 29.99, 30.44, 31.88, 28.46, 27.79, 30.81, 30.01, 30.42, 30.73, 29.78, 31.08, 28.63, 29.9, 28.57, 28.07, 30.44, 30.3, 26.71, 27.78, 29.68, 30.69, 28.18, 28.78, 26.98, 32.4, 29.47, 34.41, 29.57, 29.88, 29.35, 27.95, 29.39, 28.38, 30.01, 27.09, 27.28, 28.89, 29.68, 28.02, 26.74, 27.5, 26.89, 30.17, 28.7, 29.14, 27.72, 26.45, 28.8, 29.4, 27.83, 26.91, 28.39, 26.29, 27.81, 25.68, 25.25, 27.34, 26.95, 29.08, 25.96, 26.33, 24.64, 23.55, 23.62, 26.7, 24.35, 27.51, 27.87, 25.43, 28.09, 26.04, 27.24, 25.3, 26.91, 24.19, 26.34, 24.77, 25.19, 26.21, 25.52, 25.13, 26.22, 26.28, 23.18, 25.86, 25.98, 23.95, 25.51, 23.08, 26.92, 24.54, 24.73, 26.49, 24.58, 25.6, 23.27, 23.91, 22.74, 24.37, 26.09, 24.94, 25.85, 23.16, 23.34, 23.91, 25.35, 25.04, 24.51, 25.39, 24.3, 24.48, 26.33, 23.68, 24.76, 26.76, 24.64, 25.49, 23.66, 27.25, 21.37, 22.94, 23.06, 26.81, 25.05, 24.2], "roll": [25.05, 24.705, 23.933, 24.2, 24.552, 24.538, 24.547, 24.779, 24.584, 24.624, 24.464, 24.063, 24.387, 24.49, 24.067, 24.223, 25.126, 25.167, 25.287, 25.113, 25.214, 25.469, 25.449, 24.684, 24.966, 25.149, 24.803, 24.953, 25.107, 25.286, 25.511, 25.486, 25.409, 25.517, 25.399, 25.009, 25.189, 25.007, 24.996, 25.161, 25.844, 25.624, 25.687, 24.859, 24.981, 24.944, 25.117, 24.977, 25.586, 25.786, 27.187, 27.874, 28.019, 27.543, 27.44, 27.19, 26.946, 26.503, 26.137, 26.091, 26.747, 27.036, 26.997, 27.576, 27.503, 27.459, 27.706, 27.759, 27.52, 27.249, 27.396, 27.283, 27.54, 27.956, 27.924, 27.876, 28.103, 28.297, 28.69, 28.851, 28.759, 28.83, 29.083, 29.264, 28.49, 28.267, 28.223, 28.08, 28.247, 28.361, 28.659, 29.51, 29.713, 29.746, 29.534, 29.724, 29.833, 29.974, 30.2, 30.669, 30.787, 31.34, 30.933, 31.084, 31.087, 30.527, 30.65, 30.593, 30.643, 30.916, 31.097, 31.401, 31.627, 31.121, 31.303, 31.403, 30.891, 30.636, 30.534, 30.211, 30.447, 30.259, 30.209, 30.781, 30.74, 30.63, 30.947, 31.134, 31.33, 31.25, 31.309, 31.767, 31.869, 32.317, 32.466, 32.49, 32.727, 32.987, 32.913, 32.9, 32.754, 32.857, 33.497, 33.259, 33.334, 33.237, 33.51, 33.719, 33.809, 32.846, 32.923, 32.65, 32.73, 32.457, 32.269, 32.219, 33.183, 32.761, 32.919, 33.024, 33.189, 33.266, 32.876, 32.321, 33.046, 33.336, 33.304, 33.147, 33.244, 33.474, 33.779, 33.663, 33.327, 33.347, 33.279, 33.423, 33.706, 33.359, 33.414, 33.334, 33.504, 33.913, 33.693, 33.644, 33.781, 33.554, 33.624, 33.366, 33.103, 33.161, 32.82, 33.037, 33.349, 33.339, 33.056, 33.239, 33.407, 33.469, 33.696, 33.513, 33.884, 33.761, 33.677, 33.351, 33.176, 32.827, 33.263, 32.977, 33.573, 33.47, 33.313, 33.083, 32.68, 31.736, 31.947, 31.584, 31.29, 31.154, 31.244, 31.38, 31.437, 31.399, 31.243, 31.237, 31.5, 31.944, 31.446, 31.544, 31.199, 31.316, 31.516, 31.441, 30.897, 31.086, 31.153, 30.797, 30.973, 30.807, 30.483, 30.539, 30.62, 30.487, 30.843, 30.21, 29.756, 29.956, 29.911, 29.973, 30.014, 29.714, 30.089, 30.209, 30.079, 29.873, 29.537, 29.496, 29.57, 28.946, 28.824, 28.793, 29.096, 29.111, 28.874, 28.4, 29.213, 29.454, 30.13, 29.97, 30.213, 30.294, 30.433, 30.003, 29.847, 29.219, 28.864, 28.493, 28.427, 28.674, 28.479, 28.244, 27.886, 27.857, 28.27, 28.243, 28.166, 28.123, 28.081, 28.267, 28.626, 28.291, 28.036, 27.929, 27.724, 27.919, 27.473, 26.88, 26.81, 26.816, 26.914, 26.867, 26.656, 26.507, 26.264, 25.733, 25.697, 25.021, 25.243, 25.463, 25.576, 26.224, 26.57, 26.647, 26.783, 26.697, 26.171, 26.301, 25.827, 25.706, 25.559, 25.59, 25.336, 25.626, 25.617, 25.39, 25.486, 25.453, 25.229, 25.283, 24.834, 24.926, 25.12, 24.959, 25.031, 25.121, 25.134, 25.161, 24.731, 24.474, 24.423, 24.366, 24.417, 24.453, 24.437, 24.356, 24.523, 24.663, 24.513, 24.451, 24.386, 24.549, 24.711, 25.057, 24.819, 24.779, 25.1, 24.993, 25.163, 25.046, 25.177, 24.847, 24.587, 24.059, 24.369, 24.306, 24.383], "std": [1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.492, 1.469, 1.457, 1.435, 1.424, 1.422, 1.413, 1.417, 1.407, 1.397, 1.387, 1.486, 1.468, 1.455, 1.581, 1.563, 1.549, 1.565, 1.596, 1.676, 1.661, 1.806, 1.889, 1.879, 1.874, 1.869, 1.869, 1.862, 1.864, 1.861, 1.849, 1.871, 1.908, 1.901, 1.911, 1.902, 1.893, 1.901, 1.923, 1.918, 1.906, 1.933, 1.92, 1.934, 2.011, 2.021, 2.011, 1.999, 2.049, 2.061, 2.088, 2.127, 2.138, 2.143, 2.138, 2.13, 2.12, 2.135, 2.147, 2.175, 2.188, 2.209, 2.247, 2.247, 2.258, 2.25, 2.295, 2.314, 2.344, 2.405, 2.45, 2.464, 2.499, 2.493, 2.52, 2.539, 2.532, 2.583, 2.587, 2.619, 2.628, 2.667, 2.714, 2.716, 2.71, 2.724, 2.759, 2.747, 2.754, 2.781, 2.769, 2.776, 2.774, 2.798, 2.804, 2.805, 2.818, 2.815, 2.834, 2.841, 2.854, 2.861, 2.897, 2.913, 2.94, 2.966, 2.971, 2.998, 3.02, 3.042, 3.051, 3.061, 3.09, 3.148, 3.151, 3.174, 3.182, 3.208, 3.228, 3.258, 3.247, 3.252, 3.253, 3.264, 3.267, 3.272, 3.293, 3.336, 3.326, 3.333, 3.347, 3.357, 3.363, 3.36, 3.36, 3.379, 3.402, 3.412, 3.412, 3.421, 3.426, 3.44, 3.448, 3.449, 3.458, 3.454, 3.469, 3.489, 3.485, 3.494, 3.491, 3.507, 3.521, 3.523, 3.536, 3.536, 3.534, 3.532, 3.533, 3.533, 3.536, 3.533, 3.541, 3.552, 3.549, 3.542, 3.548, 3.558, 3.556, 3.575, 3.576, 3.588, 3.579, 3.58, 3.577, 3.57, 3.571, 3.593, 3.591, 3.597, 3.595, 3.588, 3.579, 3.571, 3.563, 3.569, 3.564, 3.556, 3.548, 3.54, 3.534, 3.526, 3.53, 3.523, 3.515, 3.511, 3.512, 3.507, 3.499, 3.494, 3.488, 3.484, 3.478, 3.47, 3.463, 3.457, 3.45, 3.448, 3.441, 3.434, 3.427, 3.42, 3.413, 3.408, 3.402, 3.398, 3.392, 3.385, 3.378, 3.372, 3.365, 3.359, 3.353, 3.347, 3.341, 3.337, 3.33, 3.324, 3.324, 3.32, 3.313, 3.307, 3.303, 3.297, 3.296, 3.293, 3.287, 3.292, 3.286, 3.28, 3.274, 3.271, 3.265, 3.26, 3.254, 3.253, 3.251, 3.245, 3.24, 3.236, 3.235, 3.233, 3.232, 3.226, 3.221, 3.216, 3.213, 3.214, 3.209, 3.203, 3.2, 3.199, 3.194, 3.196, 3.192, 3.196, 3.201, 3.199, 3.198, 3.193, 3.195, 3.196, 3.204, 3.218, 3.232, 3.231, 3.24, 3.237, 3.233, 3.237, 3.233, 3.234, 3.231, 3.235, 3.234, 3.243, 3.243, 3.249, 3.253, 3.253, 3.255, 3.259, 3.259, 3.259, 3.273, 3.274, 3.274, 3.283, 3.285, 3.299, 3.296, 3.302, 3.307, 3.305, 3.311, 3.312, 3.323, 3.331, 3.345, 3.351, 3.35, 3.353, 3.353, 3.364, 3.374, 3.381, 3.382, 3.385, 3.389, 3.39, 3.395, 3.399, 3.397, 3.405, 3.407, 3.405, 3.408, 3.408, 3.415, 3.412, 3.431, 3.441, 3.45, 3.447, 3.448, 3.452], "outlier": [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false, false, false], "nan_before": {"value": 0, "roll_mean_7": 6, "exp_std_30": 29}, "nan_after": {"value": 0, "roll_mean_7": 0, "exp_std_30": 0}, "filled_rows": 29, "mu": 28.914, "sigma": 3.452, "lo": 22.01, "hi": 35.818, "n_out": 6}};
+const $ = s => document.querySelector(s);
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs = {}, parent) => {
+  const n = document.createElementNS(NS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+};
+const fmt = (v, d = 2) => Number(v).toFixed(d);
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const STATE_VAR = ["var(--sunny)", "var(--cloudy)", "var(--rainy)"];
+const STATE_TEXT = ["#1D2A31", "#1D2A31", "#fff"];
+
+/* ---------- Hero thermograph ---------- */
+(function hero(){
+  const T = DATA.ts, N = T.value.length;
+  const W = 1200, H = 440, L = 44, R = 14, TOP = 12, B = 34;
+  const lows = T.value.map((v,i) => Math.min(v, T.roll[i] - T.std[i], T.lo));
+  const highs = T.value.map((v,i) => Math.max(v, T.roll[i] + T.std[i], T.hi));
+  const yMin = Math.floor(Math.min(...lows)) - 1, yMax = Math.ceil(Math.max(...highs)) + 1;
+  const x = i => L + i * (W - L - R) / (N - 1);
+  const y = v => TOP + (yMax - v) * (H - TOP - B) / (yMax - yMin);
+  const svg = $("#thermo");
+
+  const nOut = T.n_out;
+  $("#lede").innerHTML = `A simulated 2025 for one station: a seasonal swing plus daily noise, with a few extreme days added on purpose. <b>${nOut} of ${N} days</b> fall outside two standard deviations of the mean.`;
+
+  // grid
+  const g = el("g", {}, svg);
+  for (let v = yMin; v <= yMax; v++) {
+    const major = v % 5 === 0;
+    el("line", {x1:L, x2:W-R, y1:y(v), y2:y(v), stroke: major ? "var(--grid-major)" : "var(--grid)", "stroke-width": major ? 1 : .6}, g);
+    if (major) { const t = el("text", {x:L-8, y:y(v)+4, "text-anchor":"end", "font-size":13}, g); t.textContent = v + "°"; }
+  }
+  const monthStart = [];
+  T.dates.forEach((d,i) => { if (d.endsWith("-01")) monthStart.push(i); });
+  for (let i = 0; i < N; i += 7) el("line", {x1:x(i), x2:x(i), y1:TOP, y2:H-B, stroke:"var(--grid)", "stroke-width":.6}, g);
+  monthStart.forEach((i, k) => {
+    el("line", {x1:x(i), x2:x(i), y1:TOP, y2:H-B, stroke:"var(--grid-major)", "stroke-width":1}, g);
+    const next = monthStart[k+1] ?? N;
+    const t = el("text", {x:(x(i)+x(next-1))/2, y:H-10, "text-anchor":"middle", "font-size":14}, g);
+    t.textContent = MONTHS[k];
+  });
+  el("line", {x1:x(N-1), x2:x(N-1), y1:TOP, y2:H-B, stroke:"var(--grid-major)", "stroke-width":1}, g);
+
+  const layers = {};
+  const layer = name => (layers[name] = el("g", {"data-layer": name}, svg));
+
+  // band
+  let d = T.roll.map((m,i) => `${i?"L":"M"}${x(i).toFixed(1)},${y(m + T.std[i]).toFixed(1)}`).join("");
+  for (let i = N - 1; i >= 0; i--) d += `L${x(i).toFixed(1)},${y(T.roll[i] - T.std[i]).toFixed(1)}`;
+  el("path", {d: d + "Z", fill:"var(--trace-soft)"}, layer("band"));
+
+  // limits
+  const lim = layer("limits");
+  [T.mu].forEach(v => el("line", {x1:L, x2:W-R, y1:y(v), y2:y(v), stroke:"var(--ink)", "stroke-width":1, opacity:.55}, lim));
+  [T.lo, T.hi].forEach(v => {
+    el("line", {x1:L, x2:W-R, y1:y(v), y2:y(v), stroke:"var(--alert)", "stroke-width":1.3, "stroke-dasharray":"7 5"}, lim);
+  });
+  const lt = el("text", {x:W-R-6, y:y(T.hi)-7, "text-anchor":"end", "font-size":13, style:"fill:var(--alert)"}, lim); lt.textContent = `μ + 2σ  ${fmt(T.hi)}°`;
+  const lb = el("text", {x:W-R-6, y:y(T.lo)+17, "text-anchor":"end", "font-size":13, style:"fill:var(--alert)"}, lim); lb.textContent = `μ − 2σ  ${fmt(T.lo)}°`;
+
+  // raw trace
+  const raw = el("path", {
+    d: T.value.map((v,i) => `${i?"L":"M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(""),
+    fill:"none", stroke:"var(--trace)", "stroke-width":1.4, "stroke-linejoin":"round", "stroke-linecap":"round"
+  }, layer("raw"));
+
+  // rolling mean
+  el("path", {
+    d: T.roll.map((v,i) => `${i?"L":"M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(""),
+    fill:"none", stroke:"var(--ink)", "stroke-width":2.6, "stroke-linejoin":"round"
+  }, layer("roll"));
+
+  // outliers
+  const og = layer("out");
+  T.value.forEach((v,i) => {
+    if (!T.outlier[i]) return;
+    el("circle", {cx:x(i), cy:y(v), r:6.5, fill:"var(--alert)", stroke:"var(--sheet)", "stroke-width":2}, og);
+  });
+
+  // cursor
+  const cur = el("g", {opacity:0}, svg);
+  const cline = el("line", {y1:TOP, y2:H-B, stroke:"var(--ink)", "stroke-width":1}, cur);
+  const cdot = el("circle", {r:5, fill:"var(--sheet)", stroke:"var(--trace)", "stroke-width":2.5}, cur);
+
+  // layer toggles
+  document.querySelectorAll(".pen input").forEach(inp => {
+    inp.addEventListener("change", () => {
+      layers[inp.dataset.layer].style.display = inp.checked ? "" : "none";
+    });
+  });
+
+  // load animation: the pen draws the year once
+  if (!reduceMotion) {
+    const len = raw.getTotalLength();
+    raw.style.strokeDasharray = len; raw.style.strokeDashoffset = len;
+    const later = ["band","roll","limits","out"].map(k => layers[k]);
+    later.forEach(n => { n.style.opacity = 0; n.style.transition = "opacity .7s ease"; });
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      raw.style.transition = "stroke-dashoffset 2.6s cubic-bezier(.45,.05,.35,1)";
+      raw.style.strokeDashoffset = 0;
+    }));
+    setTimeout(() => later.forEach((n,k) => setTimeout(() => n.style.opacity = 1, k * 140)), 2400);
+  }
+
+  // readout
+  const ro = $("#readout"), drum = $("#drum");
+  let idx = null;
+  function show(i){
+    idx = Math.max(0, Math.min(N - 1, i));
+    const v = T.value[idx], out = T.outlier[idx];
+    cur.setAttribute("opacity", 1);
+    cline.setAttribute("x1", x(idx)); cline.setAttribute("x2", x(idx));
+    cdot.setAttribute("cx", x(idx)); cdot.setAttribute("cy", y(v));
+    cdot.setAttribute("stroke", out ? "var(--alert)" : "var(--trace)");
+    const date = new Date(T.dates[idx] + "T00:00:00");
+    ro.innerHTML =
+      `<div class="d">${date.toLocaleDateString("en-GB",{weekday:"short", day:"numeric", month:"long"})}</div>
+       <div class="v ${out ? "out" : ""}">${fmt(v)} °C</div>
+       <div class="m">7-day mean ${fmt(T.roll[idx])} °C</div>
+       <div class="m">Expanding σ ${fmt(T.std[idx], 3)}${idx < 29 ? " (filled)" : ""}</div>
+       ${out ? `<div style="color:var(--alert);font-weight:600">Outside the 2σ band</div>` : ""}`;
+    ro.classList.add("on");
+    const r = svg.getBoundingClientRect(), dr = drum.getBoundingClientRect();
+    const px = r.left - dr.left + x(idx) / W * r.width;
+    const w = ro.offsetWidth;
+    ro.style.left = (px + 16 + w > dr.width ? px - 16 - w : px + 16) + "px";
+  }
+  function hide(){ cur.setAttribute("opacity", 0); ro.classList.remove("on"); }
+  svg.addEventListener("pointermove", e => {
+    const r = svg.getBoundingClientRect();
+    const sx = (e.clientX - r.left) / r.width * W;
+    show(Math.round((sx - L) / (W - L - R) * (N - 1)));
+  });
+  svg.addEventListener("pointerleave", hide);
+  svg.addEventListener("blur", hide);
+  svg.addEventListener("keydown", e => {
+    const step = e.shiftKey ? 7 : 1;
+    if (e.key === "ArrowRight") { show((idx ?? -1) + step); e.preventDefault(); }
+    else if (e.key === "ArrowLeft") { show((idx ?? N) - step); e.preventDefault(); }
+    else if (e.key === "Home") { show(0); e.preventDefault(); }
+    else if (e.key === "End") { show(N - 1); e.preventDefault(); }
+    else if (e.key === "Escape") hide();
+  });
+
+  // figures
+  const pct = (nOut / N * 100).toFixed(2);
+  $("#figures").innerHTML = `
+    <div><dt>Mean</dt><dd>${fmt(T.mu)} <small>°C</small></dd></div>
+    <div><dt>Standard deviation</dt><dd>${fmt(T.sigma)} <small>°C</small></dd></div>
+    <div><dt>2σ band</dt><dd>${fmt(T.lo,1)}–${fmt(T.hi,1)} <small>°C</small></dd></div>
+    <div class="alert"><dt>Days outside the band</dt><dd>${nOut} <small>${pct}%</small></dd></div>
+    <div><dt>Expected by the empirical rule</dt><dd>${(0.0455*N).toFixed(1)} <small>4.55%</small></dd></div>`;
+  $("#ts-note").textContent = `Fewer days cross the band than the empirical rule predicts. The rule assumes one bell curve, but the summer–winter swing inflates σ, so the band is wide and only the injected extreme days reach past it. The shaded band widens through the year for the same reason: the expanding σ keeps absorbing more of the seasonal cycle.`;
+})();
+
+/* ---------- 1.1 Covariance ---------- */
+(function cov(){
+  const C = DATA.cov, names = C.names, short = ["Temp.", "Humidity", "Pressure"];
+  const svg = $("#heat");
+  const cs = 112, ox = 104, oy = 30;
+  function draw(mode){
+    svg.innerHTML = "";
+    const M = mode === "corr" ? C.corr : C.manual;
+    const maxAbs = Math.max(...M.flat().map(Math.abs));
+    names.forEach((n,i) => {
+      const t = el("text", {x: ox + i*cs + cs/2, y: oy - 10, "text-anchor":"middle", "font-size":14}, svg); t.textContent = short[i];
+      const s = el("text", {x: ox - 12, y: oy + i*cs + cs/2 + 5, "text-anchor":"end", "font-size":14}, svg); s.textContent = short[i];
+    });
+    M.forEach((row,i) => row.forEach((v,j) => {
+      const a = Math.abs(v) / (mode === "corr" ? 1 : maxAbs);
+      const col = v >= 0 ? "var(--pos)" : "var(--trace)";
+      el("rect", {x: ox + j*cs + 2, y: oy + i*cs + 2, width: cs - 4, height: cs - 4, rx: 3, fill:"var(--paper)"}, svg);
+      el("rect", {x: ox + j*cs + 2, y: oy + i*cs + 2, width: cs - 4, height: cs - 4, rx: 3, fill: col, "fill-opacity": (0.08 + a * 0.85).toFixed(3)}, svg);
+      const t = el("text", {x: ox + j*cs + cs/2, y: oy + i*cs + cs/2 + 7, "text-anchor":"middle", "font-size":20, "font-weight":650}, svg);
+      t.style.fill = a > .5 ? "var(--sheet)" : "var(--ink)";
+      t.textContent = fmt(v, mode === "corr" ? 3 : 2);
+    }));
+    $("#heat-cap").textContent = mode === "corr"
+      ? "R = D⁻¹ C D⁻¹. Teal is positive, violet is negative; strength is the shade."
+      : "Units are products of the two channels' units, so the humidity variance (%²) dominates the scale.";
+  }
+  document.querySelectorAll("[data-m]").forEach(b => b.addEventListener("click", () => {
+    document.querySelectorAll("[data-m]").forEach(o => o.setAttribute("aria-pressed", o === b));
+    draw(b.dataset.m);
+  }));
+  draw("corr");
+
+  $("#cov-check").innerHTML = `<b>Matches <code>np.cov(X)</code>.</b> The largest difference between the manual and NumPy matrices is ${C.max_diff.toExponential(2).replace("e-", " × 10<sup>−").replace(/$/, "</sup>")}, which is floating-point rounding.`;
+  const r = C.corr[0][1];
+  $("#cov-insight").textContent = `Temperature and humidity move against each other (r = ${fmt(r,3)}): warmer readings come with drier air. Pressure is almost independent of humidity (r = ${fmt(C.corr[1][2],3)}).`;
+
+  const units = ["°C", "%", "hPa"];
+  let h = `<thead><tr><th>Reading</th>${C.sample[0].map((_,k)=>`<th>${k+1}</th>`).join("")}<th>Mean</th></tr></thead><tbody>`;
+  C.sample = C.sample.map(r => r.slice(0,6));
+  C.sample.forEach((row,i) => {
+    h += `<tr><td>${names[i]} <span style="color:var(--muted)">(${units[i]})</span></td>${row.map(v=>`<td>${fmt(v)}</td>`).join("")}<td><b>${fmt(C.means[i])}</b></td></tr>`;
+  });
+  $("#sample").innerHTML = h + "</tbody>";
+})();
+
+/* ---------- 1.2 Markov ---------- */
+(function markov(){
+  const M = DATA.markov, S = M.states, P = M.P;
+  // matrix
+  let h = `<span></span>${S.map((s,j)=>`<span class="h"><span class="dot" style="background:${STATE_VAR[j]}"></span>to ${s}</span>`).join("")}`;
+  P.forEach((row,i) => {
+    h += `<span class="rowlab"><span class="dot" style="background:${STATE_VAR[i]}"></span>${S[i]}</span>`;
+    row.forEach((p,j) => h += `<div class="cell" title="${S[i]} → ${S[j]}: ${p}"><i style="width:${p*100}%;background:${STATE_VAR[j]};opacity:.55"></i><span>${p.toFixed(2)}</span></div>`);
+  });
+  $("#matrix").innerHTML = h;
+
+  // strip + counts
+  function render(path, notebook){
+    $("#strip").innerHTML = path.map((s,d) =>
+      `<span class="${d===0?"first":""}" style="background:${STATE_VAR[s]};color:${STATE_TEXT[s]}" title="Day ${d}: ${S[s]}">${S[s][0]}</span>`).join("");
+    const c = [0,0,0]; path.slice(1).forEach(s => c[s]++);
+    $("#counts").innerHTML = S.map((s,i)=>`<span><span class="dot" style="background:${STATE_VAR[i]}"></span>${s} <b>${c[i]}</b> of 50 (${(c[i]/50*100).toFixed(0)}%)</span>`).join("");
+    $("#reset").hidden = notebook;
+    $("#runlabel").textContent = notebook ? "Notebook run, seed 42" : "New run in your browser";
+    drawCompare(c.map(v => v/50), notebook);
+  }
+  function simulate(){
+    const path = [0];
+    for (let k = 0; k < 50; k++) {
+      const row = P[path[path.length-1]]; let u = Math.random(), j = 0;
+      while (j < 2 && u >= row[j]) { u -= row[j]; j++; }
+      path.push(j);
+    }
+    return path;
+  }
+  $("#resim").addEventListener("click", () => render(simulate(), false));
+  $("#reset").addEventListener("click", () => render(M.path, true));
+
+  // convergence
+  const svg = $("#conv"), W = 560, H = 270, L = 40, R = 14, T = 12, B = 32;
+  const D = M.dist, K = D.length - 1;
+  const x = k => L + k * (W - L - R) / K, y = p => T + (1 - p) * (H - T - B);
+  for (let p = 0; p <= 1.0001; p += .25) {
+    el("line", {x1:L, x2:W-R, y1:y(p), y2:y(p), stroke:"var(--grid)", "stroke-width":1}, svg);
+    const t = el("text", {x:L-8, y:y(p)+4, "text-anchor":"end", "font-size":12}, svg); t.textContent = p.toFixed(2);
+  }
+  for (let k = 0; k <= K; k += 3) { const t = el("text", {x:x(k), y:H-10, "text-anchor":k===K?"end":k===0?"start":"middle", "font-size":12}, svg); t.textContent = "day " + k; }
+  S.forEach((s,i) => {
+    el("line", {x1:L, x2:W-R, y1:y(M.pi[i]), y2:y(M.pi[i]), stroke:STATE_VAR[i], "stroke-width":1.3, "stroke-dasharray":"5 5", opacity:.9}, svg);
+    el("path", {d: D.map((r,k)=>`${k?"L":"M"}${x(k)},${y(r[i])}`).join(""), fill:"none", stroke:STATE_VAR[i], "stroke-width":2.4, "stroke-linejoin":"round"}, svg);
+    D.forEach((r,k) => { const c = el("circle", {cx:x(k), cy:y(r[i]), r:3.2, fill:STATE_VAR[i]}, svg);
+      const tt = el("title", {}, c); tt.textContent = `Day ${k}, ${s}: ${r[i].toFixed(4)}`; });
+  });
+  $("#conv-legend").innerHTML = S.map((s,i)=>`<span><span class="ln" style="border-color:${STATE_VAR[i]}"></span>${s}</span>`).join("")
+    + `<span><span class="ln dash" style="border-color:var(--muted)"></span>π</span>`;
+
+  // compare
+  function drawCompare(sample, notebook){
+    const maxv = .6;
+    const lab = notebook ? "50 days" : "your 50 days";
+    $("#compare").innerHTML = S.map((s,i) => `
+      <div class="row">
+        <span style="font-weight:600"><span class="dot" style="background:${STATE_VAR[i]}"></span>${s}</span>
+        <div class="bars">
+          <div class="bar"><i style="width:${sample[i]/maxv*70}%;background:${STATE_VAR[i]};opacity:.4"></i>${sample[i].toFixed(4)} <em>${lab}</em></div>
+          <div class="bar"><i style="width:${M.long_freq[i]/maxv*70}%;background:${STATE_VAR[i]};opacity:.7"></i>${M.long_freq[i].toFixed(4)} <em>100,000 steps</em></div>
+          <div class="bar"><i style="width:${M.pi[i]/maxv*70}%;background:${STATE_VAR[i]}"></i><b>${M.pi[i].toFixed(4)}</b> <em>eigenvector π</em></div>
+        </div>
+      </div>`).join("");
+  }
+  $("#eig").innerHTML = `Eigenvalues of P<sup>T</sup>: <b>${M.eigvals.map(v=>v.toFixed(4)).join(", ")}</b>. The eigenvector for λ = 1 is (${M.eigvec_raw.map(v=>v.toFixed(4)).join(", ")}); dividing by its sum gives π, and π P = π holds. The second eigenvalue, ${M.eigvals[1].toFixed(4)}, sets how fast the chain forgets its starting day: the gap to π shrinks by about that factor each step.`;
+
+  render(M.path, true);
+})();
+
+/* ---------- 2.1 NaN handling ---------- */
+(function nans(){
+  const T = DATA.ts, DAYS = 35;
+  const cols = [
+    {name:"value", note:"raw reading", nan:0},
+    {name:"roll_mean_7", note:"rolling(7).mean()", nan:T.nan_before.roll_mean_7},
+    {name:"exp_std_30", note:"expanding(min 30).std()", nan:T.nan_before.exp_std_30},
+  ];
+  function draw(stage){
+    let h = "";
+    cols.forEach(c => {
+      h += `<div class="lab">${c.name}<small>${c.note}</small></div><div class="cells">`;
+      for (let d = 0; d < DAYS; d++) {
+        const missing = d < c.nan;
+        const cls = missing ? (stage === "before" ? "na" : "fill") : "";
+        h += `<span class="${cls}" title="Day ${d+1}: ${missing ? (stage==="before" ? "NaN" : "filled") : "computed"}"></span>`;
+      }
+      h += `</div>`;
+    });
+    h += `<span></span><div class="axis">${Array.from({length:DAYS},(_,d)=>`<span>${(d===0||(d+1)%7===0)?d+1:""}</span>`).join("")}</div>`;
+    $("#nan").innerHTML = h;
+    const nb = T.nan_before, na = T.nan_after;
+    $("#nancount").innerHTML = stage === "before"
+      ? `<span>roll_mean_7: <b style="color:var(--alert)">${nb.roll_mean_7} NaN</b></span><span>exp_std_30: <b style="color:var(--alert)">${nb.exp_std_30} NaN</b></span><span>First ${DAYS} of 365 days shown</span>`
+      : `<span>roll_mean_7: <b>${na.roll_mean_7} NaN</b></span><span>exp_std_30: <b>${na.exp_std_30} NaN</b></span><span>Rows flagged <code>is_filled</code>: <b>${T.filled_rows}</b></span>`;
+  }
+  document.querySelectorAll("[data-s]").forEach(b => b.addEventListener("click", () => {
+    document.querySelectorAll("[data-s]").forEach(o => o.setAttribute("aria-pressed", o === b));
+    draw(b.dataset.s);
+  }));
+  draw("before");
+})();
+</script>
+</body>
+</html>
